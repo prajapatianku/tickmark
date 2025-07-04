@@ -1,12 +1,12 @@
 export const getLivePrice = async (symbol) => {
   try {
-    const res = await fetch(`/api/getPrice?symbol=${symbol.toUpperCase()}`);
-    const json = await res.json();
-    if (res.ok && json.price != null) return parseFloat(json.price);
-    console.error("API error:", json.error);
-    return null;
+    const response = await fetch(`/api/getCmp?symbol=${symbol}`);
+    const data = await response.json();
+
+    if (!data || !data.cmp) throw new Error("Invalid response");
+    return parseFloat(data.cmp);
   } catch (err) {
-    console.error(err);
+    console.error("Failed to fetch live price from Yahoo:", err);
     return null;
   }
 };
