@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-
 import { FaPlus, FaEdit, FaCheckCircle, FaTrash } from "react-icons/fa";
 import {
   collection,
@@ -69,8 +68,11 @@ const OpenPositions = ({
       return;
     }
 
-    console.log("Fetching CMP for:", formData.stock);
-    const livePrice = await getLivePrice(formData.stock);
+    const symbol = formData.stock.includes(".NS")
+      ? formData.stock
+      : `${formData.stock}.NS`;
+    console.log("Fetching CMP for:", symbol);
+    const livePrice = await getLivePrice(symbol);
 
     if (!livePrice) {
       alert("Failed to fetch CMP. Please check the symbol or try again.");
