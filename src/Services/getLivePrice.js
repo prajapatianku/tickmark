@@ -1,12 +1,13 @@
+// /Services/getLivePrice.js
 export const getLivePrice = async (symbol) => {
   try {
-    const response = await fetch(`/api/getCmp?symbol=${symbol}`);
-    const data = await response.json();
-
-    if (!data || !data.cmp) throw new Error("Invalid response");
-    return parseFloat(data.cmp);
+    const res = await fetch(`/api/getPrice?symbol=${symbol}`);
+    const data = await res.json();
+    if (data.price) return parseFloat(data.price);
+    console.error("Price not found:", data);
+    return null;
   } catch (err) {
-    console.error("Failed to fetch live price from Yahoo:", err);
+    console.error("Failed to fetch live price from backend:", err);
     return null;
   }
 };
