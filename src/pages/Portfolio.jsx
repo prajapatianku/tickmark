@@ -4,6 +4,7 @@ import ClosedPositions from "../features/tracker/ClosedPositions";
 import {
   getOpenPositions,
   getClosedPositions,
+  deleteClosedPosition,
 } from "../Services/firestoreService";
 import { useAuth } from "../context/AuthContext";
 
@@ -15,14 +16,25 @@ const Portfolio = () => {
   useEffect(() => {
     const fetchData = async () => {
       if (user) {
-        const open = await getOpenPositions(user.uid);
         const closed = await getClosedPositions(user.uid);
-        setPositions(open);
         setClosedPositions(closed);
       }
     };
     fetchData();
   }, [user]);
+  const handleDeleteClosed = async (positionId) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this position?"
+    );
+    if (!confirmDelete) return;
+
+    try {
+      await deleteClosedPosition(user.uid, positionId);
+      setClosedPositions((prev) => prev.filter((pos) => pos.id !== positionId));
+    } catch (error) {
+      console.error("Failed to delete position:", error);
+    }
+  };
 
   return (
     <div className="p-4 mt-16">
@@ -32,7 +44,10 @@ const Portfolio = () => {
         closedPositions={closedPositions}
         setClosedPositions={setClosedPositions}
       />
-      <ClosedPositions closedPositions={closedPositions} />
+      <ClosedPositions
+        closedPositions={closedPositions}
+        handleDelete={handleDeleteClosed}
+      />
     </div>
   );
 };

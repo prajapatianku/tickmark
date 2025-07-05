@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import {
   FaChartLine,
   FaClipboardList,
@@ -31,6 +33,7 @@ const Dashboard = () => {
       </motion.p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Portfolio Card */}
         <motion.div
           className="bg-blue-200 p-6 rounded-lg shadow-lg"
           whileHover={{ scale: 1.05 }}
@@ -47,6 +50,7 @@ const Dashboard = () => {
           </p>
         </motion.div>
 
+        {/* Watchlist Card */}
         <motion.div
           className="bg-blue-200 p-6 rounded-lg shadow-lg"
           whileHover={{ scale: 1.05 }}
@@ -61,6 +65,7 @@ const Dashboard = () => {
           </p>
         </motion.div>
 
+        {/* Quick Actions Card */}
         <motion.div
           className="bg-blue-200 p-6 rounded-lg shadow-lg"
           whileHover={{ scale: 1.05 }}
@@ -77,21 +82,26 @@ const Dashboard = () => {
           </p>
         </motion.div>
 
-        <motion.div
-          className="bg-blue-200 p-6 rounded-lg shadow-lg"
-          whileHover={{ scale: 1.05 }}
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <FaCalculator className="text-black text-4xl mb-4 mx-auto" />
-          <h2 className="text-2xl font-semibold text-black mb-2">Calculator</h2>
-          <p className="text-base text-black">
-            Use financial calculators for quick estimates of returns, risk, or
-            trade sizing.
-          </p>
-        </motion.div>
+        {/* Calculator Card - with toggle */}
+        <Link to="/calculator">
+          <motion.div
+            className="bg-blue-200 p-6 rounded-lg shadow-lg cursor-pointer"
+            whileHover={{ scale: 1.05 }}
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <FaCalculator className="text-black text-4xl mb-4 mx-auto" />
+            <h2 className="text-2xl font-semibold text-black mb-2">
+              Calculator
+            </h2>
+            <p className="text-base text-black">
+              Use SIP calculator for estimating returns.
+            </p>
+          </motion.div>
+        </Link>
 
+        {/* Stock Journal Card */}
         <motion.div
           className="bg-blue-200 p-6 rounded-lg shadow-lg"
           whileHover={{ scale: 1.05 }}
@@ -104,11 +114,11 @@ const Dashboard = () => {
             Stock Journal
           </h2>
           <p className="text-base text-black">
-            Maintain a detailed record of your stock trades and strategies for
-            analysis.
+            Maintain detailed records of trades and strategies.
           </p>
         </motion.div>
 
+        {/* Option Journal Card */}
         <motion.div
           className="bg-blue-200 p-6 rounded-lg shadow-lg"
           whileHover={{ scale: 1.05 }}
@@ -121,8 +131,7 @@ const Dashboard = () => {
             Option Journal
           </h2>
           <p className="text-base text-black">
-            Log your options trading activity with details to refine your
-            strategies.
+            Log options trades with details to refine strategy.
           </p>
         </motion.div>
       </div>

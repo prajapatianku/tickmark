@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FaPlus, FaEdit, FaCheckCircle, FaTrash } from "react-icons/fa";
+import { FaPlus, FaEdit, FaCheckCircle } from "react-icons/fa";
 import {
   collection,
   addDoc,
@@ -41,7 +41,6 @@ const OpenPositions = ({
   useEffect(() => {
     const fetchData = async () => {
       if (!user || !user.uid) return;
-
       try {
         const q = query(collection(db, "users", user.uid, "openPositions"));
         const querySnapshot = await getDocs(q);
@@ -54,32 +53,22 @@ const OpenPositions = ({
         console.error("Error fetching open positions:", error);
       }
     };
-
     fetchData();
   }, [user]);
 
-  const handleChange = (e) => {
+  const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
 
   const fetchCMP = async () => {
-    if (!formData.stock) {
-      alert("Please enter the stock symbol.");
-      return;
-    }
-
+    if (!formData.stock) return alert("Please enter the stock symbol.");
     const symbol = formData.stock.includes(".NS")
       ? formData.stock
       : `${formData.stock}.NS`;
-    console.log("Fetching CMP for:", symbol);
     const livePrice = await getLivePrice(symbol);
-
-    if (!livePrice) {
-      alert("Failed to fetch CMP. Please check the symbol or try again.");
-      return;
-    }
-
-    console.log("Fetched CMP:", livePrice);
+    if (!livePrice)
+      return alert(
+        "Failed to fetch CMP. Please check the symbol or try again."
+      );
     setFormData((prev) => ({ ...prev, cmp: livePrice.toFixed(2) }));
   };
 
@@ -92,12 +81,9 @@ const OpenPositions = ({
     const targetValue = parseFloat(data.targetPrice) * parseFloat(data.qty);
     const totalGain = targetValue - buyValue;
     const remainingGain = targetValue - currentValue;
-
-    const today = new Date();
-    const buyDate = new Date(data.buyDate);
-    const diffTime = today.getTime() - buyDate.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
+    const diffDays = Math.floor(
+      (new Date() - new Date(data.buyDate)) / (1000 * 60 * 60 * 24)
+    );
     return {
       ...data,
       buyValue: parseFloat(buyValue.toFixed(2)),
@@ -112,64 +98,75 @@ const OpenPositions = ({
   };
 
   const handleEdit = (index) => {
-    const pos = positions[index];
-    setFormData(pos);
+    setFormData(positions[index]);
     setEditIndex(index);
     setModalOpen(true);
   };
 
-  const handleDelete = async (index) => {
-    const pos = positions[index];
-    if (pos.id && user?.uid) {
-      await deleteDoc(doc(db, "users", user.uid, "openPositions", pos.id));
-      const updated = [...positions];
-      updated.splice(index, 1);
-      setPositions(updated);
-    }
-  };
-
   const handleBookProfit = async (index) => {
     const pos = positions[index];
-    if (user?.uid && pos.id) {
+    const cmp = await getLivePrice(
+      pos.stock.includes(".NS") ? pos.stock : `${pos.stock}.NS`
+    );
+    if (!cmp) return alert("Failed to fetch live CMP. Try again.");
+
+    const sellPrice = parseFloat(cmp);
+    const qty = parseFloat(pos.qty);
+    const buyValue = parseFloat(pos.buyPrice) * qty;
+    const sellValue = sellPrice * qty;
+    const gain = sellValue - buyValue;
+    const percentGain = (gain / buyValue) * 100;
+    const daysHeld = Math.max(
+      1,
+      Math.floor((new Date() - new Date(pos.buyDate)) / (1000 * 60 * 60 * 24))
+    );
+    const annualGain = (percentGain / daysHeld) * 365;
+
+    const closedData = {
+      ...pos,
+      sellDate: new Date().toISOString().split("T")[0],
+      sellPrice: sellPrice.toFixed(2),
+      sellValue: sellValue.toFixed(2),
+      gain: gain.toFixed(2),
+      percentGain: percentGain.toFixed(2),
+      days: daysHeld,
+      annualGain: annualGain.toFixed(2),
+      closedAt: serverTimestamp(),
+    };
+
+    try {
+      const docRef = await addDoc(
+        collection(db, "users", user.uid, "closedPositions"),
+        closedData
+      );
       await deleteDoc(doc(db, "users", user.uid, "openPositions", pos.id));
-      await addDoc(collection(db, "users", user.uid, "closedPositions"), {
-        ...pos,
-        closedAt: serverTimestamp(),
-      });
       const updated = [...positions];
       updated.splice(index, 1);
       setPositions(updated);
-      setClosedPositions((prev) => [...prev, pos]);
+      setClosedPositions((prev) => [...prev, { ...closedData, id: docRef.id }]);
+    } catch (error) {
+      console.error("Error booking profit:", error);
+      alert("Failed to book profit. Please try again.");
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!user || !user.uid) {
-      console.error("User not logged in.");
-      alert("You must be logged in to add a stock.");
-      return;
-    }
-
+    if (!user?.uid) return alert("You must be logged in to add a stock.");
     const fullData = calculateValues(formData);
     const updated = [...positions];
 
     try {
       if (editIndex !== null) {
         const existingDocId = positions[editIndex].id;
-        if (existingDocId) {
-          const ref = doc(
-            db,
-            "users",
-            user.uid,
-            "openPositions",
-            existingDocId
-          );
-          await setDoc(ref, { ...fullData, updatedAt: serverTimestamp() });
-          updated[editIndex] = { ...fullData, id: existingDocId };
-          setPositions(updated);
-        }
+        await setDoc(
+          doc(db, "users", user.uid, "openPositions", existingDocId),
+          {
+            ...fullData,
+            updatedAt: serverTimestamp(),
+          }
+        );
+        updated[editIndex] = { ...fullData, id: existingDocId };
       } else {
         const docRef = await addDoc(
           collection(db, "users", user.uid, "openPositions"),
@@ -179,9 +176,8 @@ const OpenPositions = ({
           }
         );
         updated.push({ ...fullData, id: docRef.id });
-        setPositions(updated);
       }
-
+      setPositions(updated);
       setFormData(initialFormState);
       setEditIndex(null);
       setModalOpen(false);
@@ -209,7 +205,7 @@ const OpenPositions = ({
   );
 
   return (
-    <div className="bg-gray-100 shadow-md rounded-lg overflow-x-auto mt-6 p-4">
+    <div className="bg-gray-100 shadow-md rounded-lg mt-6 p-4 overflow-x-auto">
       <div className="flex justify-between items-center border-b pb-3 mb-3">
         <h2 className="text-xl font-bold text-gray-900">Open Positions</h2>
         <div className="flex gap-2">
@@ -233,75 +229,92 @@ const OpenPositions = ({
         </div>
       </div>
 
-      <div className="text-sm text-gray-800 mb-3">
-        <strong>Total Buy Value:</strong> ₹{totals.buyValue.toFixed(2)} |{" "}
-        <strong>Total Current Value:</strong> ₹{totals.currentValue.toFixed(2)}{" "}
-        | <strong>Total Gain:</strong> ₹
-        {(totals.currentValue - totals.buyValue).toFixed(2)}
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm text-left text-gray-700">
-          <thead className="bg-gray-200">
+      <div className="overflow-auto max-h-[600px]">
+        <table className="min-w-[1500px] w-full text-sm text-left text-gray-700">
+          <thead className="sticky top-0 z-20 bg-gray-200">
             <tr>
-              <th className="px-4 py-2">S. No.</th>
-              <th className="px-4 py-2">Stock</th>
-              <th className="px-4 py-2">Buy Date</th>
-              <th className="px-4 py-2">Buy Price</th>
-              <th className="px-4 py-2">Qty</th>
-              <th className="px-4 py-2">Buy Value</th>
-              <th className="px-4 py-2">CMP</th>
-              <th className="px-4 py-2">Current Value</th>
-              <th className="px-4 py-2">% Gain</th>
-              <th className="px-4 py-2">Days</th>
-              <th className="px-4 py-2">Strategy</th>
-              <th className="px-4 py-2">Target</th>
-              <th className="px-4 py-2">Total Gain</th>
-              <th className="px-4 py-2">Remaining</th>
-              <th className="px-4 py-2">Target Value</th>
-              <th className="px-4 py-2">Notes</th>
-              <th className="px-4 py-2">Actions</th>
+              {[
+                "S. No.",
+                "Stock",
+                "Buy Date",
+                "Buy Price",
+                "Qty",
+                "Buy Value",
+                "CMP",
+                "Current Value",
+                "% Gain",
+                "Days",
+                "Strategy",
+                "Target",
+                "Total Gain",
+                "Remaining",
+                "Target Value",
+                "Notes",
+                "Actions",
+              ].map((header, idx) => (
+                <th
+                  key={idx}
+                  className="px-4 py-2 sticky top-0 bg-gray-200 z-10 whitespace-nowrap"
+                >
+                  {header}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {filteredPositions.map((pos, index) => (
-              <tr key={index} className="border-t">
-                <td className="px-4 py-2">{index + 1}</td>
-                <td className="px-4 py-2">{pos.stock}</td>
-                <td className="px-4 py-2">{pos.buyDate}</td>
-                <td className="px-4 py-2">{pos.buyPrice}</td>
-                <td className="px-4 py-2">{pos.qty}</td>
-                <td className="px-4 py-2">{pos.buyValue}</td>
-                <td className="px-4 py-2">{pos.cmp}</td>
-                <td className="px-4 py-2">{pos.currentValue}</td>
-                <td className="px-4 py-2">{pos.gainPercent}</td>
-                <td className="px-4 py-2">{pos.dateValue}</td>
-                <td className="px-4 py-2">{pos.strategy}</td>
-                <td className="px-4 py-2">{pos.targetPrice}</td>
-                <td className="px-4 py-2">{pos.totalGain}</td>
-                <td className="px-4 py-2">{pos.remainingGain}</td>
-                <td className="px-4 py-2">{pos.targetValue}</td>
-                <td className="px-4 py-2 max-w-xs overflow-y-auto whitespace-pre-wrap">
-                  <div className="max-h-20 overflow-y-auto border p-1 rounded">
-                    {pos.notes || "-"}
-                  </div>
-                </td>
-                <td className="px-4 py-2 space-x-2">
-                  <button
-                    onClick={() => handleEdit(index)}
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    <FaEdit />
-                  </button>
-                  <button
-                    onClick={() => handleBookProfit(index)}
-                    className="flex items-center gap-1 text-green-700 hover:text-white hover:bg-green-600 border border-green-500 px-2 py-1 rounded text-xs"
-                  >
-                    <FaCheckCircle /> Book
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {filteredPositions.map((pos, index) => {
+              const gain =
+                parseFloat(pos.currentValue) - parseFloat(pos.buyValue);
+              const gainColor =
+                gain > 0 ? "text-green-600" : gain < 0 ? "text-red-600" : "";
+              const targetAchieved =
+                parseFloat(pos.currentValue) >=
+                parseFloat(pos.targetPrice) * parseFloat(pos.qty);
+              const targetColor = targetAchieved
+                ? "bg-green-100 font-semibold"
+                : "";
+
+              return (
+                <tr key={index} className={`border-t ${targetColor}`}>
+                  <td className="px-4 py-2">{index + 1}</td>
+                  <td className="px-4 py-2">{pos.stock}</td>
+                  <td className="px-4 py-2">{pos.buyDate}</td>
+                  <td className="px-4 py-2">{pos.buyPrice}</td>
+                  <td className="px-4 py-2">{pos.qty}</td>
+                  <td className="px-4 py-2">{pos.buyValue}</td>
+                  <td className="px-4 py-2">{pos.cmp}</td>
+                  <td className="px-4 py-2">{pos.currentValue}</td>
+                  <td className={`px-4 py-2 ${gainColor}`}>
+                    {pos.gainPercent}
+                  </td>
+                  <td className="px-4 py-2">{pos.dateValue}</td>
+                  <td className="px-4 py-2">{pos.strategy}</td>
+                  <td className="px-4 py-2">{pos.targetPrice}</td>
+                  <td className="px-4 py-2">{pos.totalGain}</td>
+                  <td className="px-4 py-2">{pos.remainingGain}</td>
+                  <td className="px-4 py-2">{pos.targetValue}</td>
+                  <td className="px-4 py-2 max-w-xs overflow-y-auto whitespace-pre-wrap">
+                    <div className="max-h-20 overflow-y-auto border p-1 rounded">
+                      {pos.notes || "-"}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2 space-x-2">
+                    <button
+                      onClick={() => handleEdit(index)}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      <FaEdit />
+                    </button>
+                    <button
+                      onClick={() => handleBookProfit(index)}
+                      className="flex items-center gap-1 text-green-700 hover:text-white hover:bg-green-600 border border-green-500 px-2 py-1 rounded text-xs"
+                    >
+                      <FaCheckCircle /> Book
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

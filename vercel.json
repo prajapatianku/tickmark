@@ -1,18 +1,9 @@
 {
-  "version": 2,
   "functions": {
-    "api/getPrice.js": {
-      "runtime": "edge"
-    }
+    "api/getPrice.js": { "runtime": "edge" }
   },
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
+    { "src": "/api/(.*)", "dest": "/api/$1.js" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }

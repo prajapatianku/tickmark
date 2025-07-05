@@ -1,10 +1,18 @@
 export async function getLivePrice(symbol) {
   try {
-    const res = await fetch(`/api/getPrice?symbol=${symbol}`);
-    const data = await res.json();
-    return parseFloat(data.price);
+    const response = await fetch(
+      `https://us-central1-tickmark-346bb.cloudfunctions.net/getCmp?symbol=${symbol}`
+    );
+    const data = await response.json();
+
+    if (!data.price) {
+      console.error("No price found in response:", data);
+      return null;
+    }
+
+    return data.price;
   } catch (err) {
-    console.error("Failed to fetch live price from Yahoo:", err);
+    console.error("CMP fetch error:", err);
     return null;
   }
 }

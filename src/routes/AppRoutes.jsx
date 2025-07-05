@@ -7,6 +7,7 @@ import Signup from "../pages/Signup";
 import Navbar from "../components/Navbar";
 import StockJournal from "../pages/StockJournal";
 import Footer from "../components/Footer";
+import CalculatorPage from "../pages/CalculatorPage";
 
 const AppRoutes = () => {
   return (
@@ -17,6 +18,7 @@ const AppRoutes = () => {
         <Route path="/journal" element={<Journal />} />
         <Route path="/portfolio" element={<Portfolio />} />
         <Route path="/stockjournal" element={<StockJournal />} />
+        <Route path="/calculator" element={<CalculatorPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
       </Routes>
